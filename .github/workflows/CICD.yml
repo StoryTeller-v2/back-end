@@ -22,6 +22,10 @@ jobs:
         run : |
           echo ${{ secrets.APPLICATION_SECRET }} | base64 --decode > ./src/main/resources/application-secret.yml
 
+      - name: Make Test application-secret.yml
+        run : |
+          echo ${{ secrets.APPLICATION_TEST_SECRET }} | base64 --decode > ./src/test/resources/application-secret.yml
+
       - name: Build with Gradle
         run: |
           chmod +x ./gradlew
