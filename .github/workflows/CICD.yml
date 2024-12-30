@@ -25,7 +25,7 @@ jobs:
       - name: Make Test application-secret.yml
         run : |
           mkdir -p ./src/test/resources
-          echo ${{ secrets.APPLICATION_TEST_SECRET }} | base64 --decode > ./src/test/resources/application-secret.yml
+          echo ${{ secrets.APPLICATION_TEST_SECRET }} | base64 --decode > ./src/test/resources/application.yml
 
       - name: Build with Gradle
         run: |
