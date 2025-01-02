@@ -180,7 +180,7 @@ public class UserService {
         this.checkDuplicatedEmail(toEmail);
         String title = "StoryTeller 이메일 인증 번호";
         String authCode = this.createCode();
-        mailService.sendEmail(toEmail, title, authCode);
+        mailService.sendEmailWithAsync(toEmail, title, authCode); // 비동기
 
         // 이메일 인증 요청 시 인증 번호 Redis에 저장 ( key = "email_code:" + Email / value = AuthCode )
         redisService.setValues(EMAIL_CODE_PREFIX + toEmail,
