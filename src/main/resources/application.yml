@@ -2,7 +2,7 @@ spring:
   profiles:
     active: local
     group:
-      local: local, common, secret
+      local: local, common, secret, performance
       blue: blue, common, secret
       green: green, common, secret
 

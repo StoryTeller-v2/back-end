@@ -4,19 +4,21 @@ import com.cojac.storyteller.response.code.ErrorCode;
 import com.cojac.storyteller.user.exception.EmailSendingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 @Slf4j
 public class MailService {
 
     private final JavaMailSender emailSender;
 
+//    @Retryable(interceptor = "mailRetryInterceptor")
     public void sendEmail(String toEmail,
                           String title,
                           String text) {

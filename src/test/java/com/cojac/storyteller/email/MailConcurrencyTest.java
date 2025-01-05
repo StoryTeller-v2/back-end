@@ -6,19 +6,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SpringBootTest
 @Slf4j
-public class EmailTest {
+public class MailConcurrencyTest {
 
     @Autowired
     private MailService mailService;
-
-    // 성공 및 실패 카운터
-    AtomicInteger successCount = new AtomicInteger();
-    AtomicInteger failureCount = new AtomicInteger();
 
     /**
      * 동시 메일 발송 테스트 - 메일 유실율 테스트
@@ -27,6 +25,10 @@ public class EmailTest {
     void testSendEmailWithMultipleThreads() throws InterruptedException {
         // 동시에 전송할 이메일 작업 수
         int threadCount = 20;
+
+        // 성공 및 실패 카운터
+        AtomicInteger successCount = new AtomicInteger();
+        AtomicInteger failureCount = new AtomicInteger();
 
         // 동시 작업 처리
         ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
