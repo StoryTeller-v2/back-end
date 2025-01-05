@@ -20,7 +20,7 @@ public class MailService {
     private final JavaMailSender emailSender;
 
     @Retryable(interceptor = "mailRetryInterceptor")
-//    @Async("mailServiceTaskExecutor")
+    @Async("mailServiceTaskExecutor")
     public void sendEmail(String toEmail,
                           String title,
                           String text) {
