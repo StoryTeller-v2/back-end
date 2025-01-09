@@ -3,9 +3,11 @@ package com.cojac.storyteller.common.amazon;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.*;
+import com.cojac.storyteller.common.amazon.eventHandler.UploadS3Event;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,6 +27,7 @@ public class AmazonS3Service {
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
     private final AmazonS3Client amazonS3Client;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * MultipartFile -> S3 업로드
@@ -45,6 +48,8 @@ public class AmazonS3Service {
         // s3로 업로드 후 로컬 파일 삭제
         String uploadImageUrl = putS3(uploadFile, fileName);
         removeNewFile(uploadFile);
+
+        eventPublisher.publishEvent(new UploadS3Event(uploadImageUrl, fileName));
         return uploadImageUrl;
     }
 
@@ -57,6 +62,7 @@ public class AmazonS3Service {
     public String putS3(File uploadFile, String fileName) {
         amazonS3Client.putObject(new PutObjectRequest(bucket, fileName, uploadFile).withCannedAcl(
                 CannedAccessControlList.PublicRead));
+        log.info("S3 업로드 완료");
         return amazonS3Client.getUrl(bucket, fileName).toString();
     }
 
@@ -70,13 +76,13 @@ public class AmazonS3Service {
             try {
                 amazonS3Client.deleteObject(bucket, key);
             } catch (AmazonServiceException e) {
-                log.info(e.getErrorMessage());
+                log.error(e.getErrorMessage());
             }
 
         } catch (Exception exception) {
-            log.info(exception.getMessage());
+            log.error(exception.getMessage());
         }
-        log.info("[S3Uploader] : S3에 있는 파일 삭제");
+        log.debug("[S3Uploader] : S3에 있는 파일 삭제");
     }
 
     /**
@@ -113,10 +119,10 @@ public class AmazonS3Service {
      */
     private void removeNewFile(File targetFile) {
         if (targetFile.delete()) {
-            log.info("[파일 업로드] : 파일 삭제 성공");
+            log.debug("[파일 업로드] : 파일 삭제 성공");
             return;
         }
-        log.info("[파일 업로드] : 파일 삭제 실패");
+        log.debug("[파일 업로드] : 파일 삭제 실패");
     }
 
     /**

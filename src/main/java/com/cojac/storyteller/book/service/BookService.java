@@ -33,7 +33,6 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,29 +58,22 @@ public class BookService {
                 .orElseThrow(() -> new ProfileNotFoundException(ErrorCode.PROFILE_NOT_FOUND));
 
         // 나이를 계산 (birthDate 기준)
-        LocalDate birthDate = profile.getBirthDate();
-        LocalDate currentDate = LocalDate.now();
-        int age = Period.between(birthDate, currentDate).getYears();
+        int age = calculateAge(profile);
 
         // OpenAI 서비스로부터 동화 생성
         String story = openAIService.generateStory(prompt, age);
-
-        // 제목과 내용을 분리 (Title: 과 Content: 기준)
         String title = story.split("Content:")[0].replace("Title:", "").trim();
         String content = story.split("Content:")[1].trim();
 
-        // Setting 초기 설정
-        SettingEntity setting = SettingEntity.createDefaultSetting();
-
-        // 책 표지 이미지 생성 및 업로드
+        // 책 표지 이미지 생성 및 S3에 업로드
         String coverImageUrl = imageGenerationService.generateAndUploadBookCoverImage(title);
 
-        // 책 엔티티 생성
-        BookEntity book = BookMapper.mapToBookEntity(title, coverImageUrl, profile, setting);
-        BookEntity savedBook = bookRepository.save(book);
+        // 책 밒 페이지 엔티티 생성
+        BookEntity book = BookMapper.createBookEntity(title, coverImageUrl, profile);
+        List<PageEntity> pages = createPage(book, content);
 
-        // 페이지 생성
-        List<PageEntity> pages = createPage(savedBook, content);
+        // 책 및 페이지 저장
+        BookEntity savedBook = bookRepository.save(book);
         batchPageInsert.batchInsertPages(pages);
 
         // 성공적으로 생성된 동화 반환
@@ -107,6 +99,13 @@ public class BookService {
         }
 
         return pages;
+    }
+
+    private int calculateAge(ProfileEntity profile) {
+        LocalDate birthDate = profile.getBirthDate();
+        LocalDate currentDate = LocalDate.now();
+        int age = Period.between(birthDate, currentDate).getYears();
+        return age;
     }
 
     /**
@@ -274,9 +273,7 @@ public class BookService {
         }
 
         // birthDate로 age 얻기
-        LocalDate birthDate = profile.getBirthDate();
-        LocalDate currentDate = LocalDate.now();
-        int age = Period.between(birthDate, currentDate).getYears();
+        int age = calculateAge(profile);
 
         // 생성한 동화 내용으로 퀴즈 생성
         String quiz = openAIService.generateQuiz(story.toString(), age);
