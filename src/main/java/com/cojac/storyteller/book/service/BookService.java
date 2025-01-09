@@ -49,60 +49,43 @@ public class BookService {
     private final BatchBookDelete batchBookDelete;
     private final AmazonS3Service amazonS3Service;
 
-    // 동화 생성 중인지 확인하는 맵 (프로필 ID를 키로 사용)
-    private final ConcurrentHashMap<Integer, Boolean> creatingBooks = new ConcurrentHashMap<>();
-
     /**
      * 동화 생성
      */
     @Transactional
     public BookDTO createBook(String prompt, Integer profileId) {
-        // 동화 생성 중복 확인
-        if (creatingBooks.getOrDefault(profileId, false)) {
-            throw new IllegalStateException("이미 동화가 생성 중입니다. 나중에 다시 시도해주세요.");
-        }
+        // 프로필 확인
+        ProfileEntity profile = profileRepository.findById(profileId)
+                .orElseThrow(() -> new ProfileNotFoundException(ErrorCode.PROFILE_NOT_FOUND));
 
-        // 동화 생성 중 상태로 설정
-        creatingBooks.put(profileId, true);
+        // 나이를 계산 (birthDate 기준)
+        LocalDate birthDate = profile.getBirthDate();
+        LocalDate currentDate = LocalDate.now();
+        int age = Period.between(birthDate, currentDate).getYears();
 
-        try {
-            // 프로필 확인
-            ProfileEntity profile = profileRepository.findById(profileId)
-                    .orElseThrow(() -> new ProfileNotFoundException(ErrorCode.PROFILE_NOT_FOUND));
+        // OpenAI 서비스로부터 동화 생성
+        String story = openAIService.generateStory(prompt, age);
 
-            // 나이를 계산 (birthDate 기준)
-            LocalDate birthDate = profile.getBirthDate();
-            LocalDate currentDate = LocalDate.now();
-            int age = Period.between(birthDate, currentDate).getYears();
+        // 제목과 내용을 분리 (Title: 과 Content: 기준)
+        String title = story.split("Content:")[0].replace("Title:", "").trim();
+        String content = story.split("Content:")[1].trim();
 
-            // OpenAI 서비스로부터 동화 생성
-            String story = openAIService.generateStory(prompt, age);
+        // Setting 초기 설정
+        SettingEntity setting = SettingEntity.createDefaultSetting();
 
-            // 제목과 내용을 분리 (Title: 과 Content: 기준)
-            String title = story.split("Content:")[0].replace("Title:", "").trim();
-            String content = story.split("Content:")[1].trim();
+        // 책 표지 이미지 생성 및 업로드
+        String coverImageUrl = imageGenerationService.generateAndUploadBookCoverImage(title);
 
-            // Setting 초기 설정
-            SettingEntity setting = SettingEntity.createDefaultSetting();
+        // 책 엔티티 생성
+        BookEntity book = BookMapper.mapToBookEntity(title, coverImageUrl, profile, setting);
+        BookEntity savedBook = bookRepository.save(book);
 
-            // 책 표지 이미지 생성 및 업로드
-            String coverImageUrl = imageGenerationService.generateAndUploadBookCoverImage(title);
+        // 페이지 생성
+        List<PageEntity> pages = createPage(savedBook, content);
+        batchPageInsert.batchInsertPages(pages);
 
-            // 책 엔티티 생성
-            BookEntity book = BookMapper.mapToBookEntity(title, coverImageUrl, profile, setting);
-            BookEntity savedBook = bookRepository.save(book);
-
-            // 페이지 생성
-            List<PageEntity> pages = createPage(savedBook, content);
-            batchPageInsert.batchInsertPages(pages);
-
-            // 성공적으로 생성된 동화 반환
-            return BookMapper.mapToBookDTO(savedBook, pages);
-
-        } finally {
-            // 동화 생성이 끝나면 상태를 제거하여 다시 요청 가능하게 함
-            creatingBooks.remove(profileId);
-        }
+        // 성공적으로 생성된 동화 반환
+        return BookMapper.mapToBookDTO(savedBook, pages);
     }
 
     private List<PageEntity> createPage(BookEntity book, String content) {
