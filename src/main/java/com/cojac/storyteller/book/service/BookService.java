@@ -68,7 +68,7 @@ public class BookService {
         // 책 표지 이미지 생성 및 S3에 업로드
         String coverImageUrl = imageGenerationService.generateAndUploadBookCoverImage(title);
 
-        // 책 밒 페이지 엔티티 생성
+        // 책 및 페이지 엔티티 생성
         BookEntity book = BookMapper.createBookEntity(title, coverImageUrl, profile);
         List<PageEntity> pages = createPage(book, content);
 
