@@ -27,7 +27,7 @@ public class AmazonS3Service {
     private final AmazonS3Client amazonS3Client;
 
     /**
-     * 로컬 경로에 저장
+     * MultipartFile -> S3 업로드
      */
     public String uploadFileToS3(MultipartFile multipartFile, String filePath) {
         // MultipartFile -> File 로 변환
@@ -49,7 +49,7 @@ public class AmazonS3Service {
     }
 
     /**
-     * S3로 업로드
+     * S3로 파일 업로드
      * @param uploadFile : 업로드할 파일
      * @param fileName : 업로드할 파일 이름
      * @return 업로드 경로
@@ -62,9 +62,8 @@ public class AmazonS3Service {
 
     /**
      * S3에 있는 파일 삭제
-     * 영어 파일만 삭제 가능 -> 한글 이름 파일은 안됨
      */
-    public void deleteS3(String filePath) throws Exception {
+    public void deleteS3(String filePath) {
         try{
             String key = filePath.substring(filePath.indexOf(bucket) + bucket.length() + 1);
 
@@ -82,7 +81,6 @@ public class AmazonS3Service {
 
     /**
      * S3에서 특정 경로에 있는 사진 목록 가져오기
-     *
      * @param folderPath
      * @return 사진 URL 리스트
      */
@@ -121,7 +119,9 @@ public class AmazonS3Service {
         log.info("[파일 업로드] : 파일 삭제 실패");
     }
 
-
+    /**
+     * MultipartFile -> File 변환
+     */
     private Optional<File> convert(MultipartFile file) throws IOException {
         // 로컬에서 저장할 파일 경로 : user.dir => 현재 디렉토리 기준
         String dirPath = System.getProperty("user.dir") + "/" + file.getOriginalFilename();
