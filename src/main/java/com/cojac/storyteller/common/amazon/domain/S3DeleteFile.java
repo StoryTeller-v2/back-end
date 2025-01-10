@@ -1,12 +1,14 @@
 package com.cojac.storyteller.common.amazon.domain;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "s3_delete_queue")
+@Getter
 @NoArgsConstructor
 public class S3DeleteFile {
 
@@ -24,13 +26,13 @@ public class S3DeleteFile {
     private String fileUid; // 파일 식별자
 
     /**
-     * S3DeleteQueue 객체 생성
+     * S3DeleteFile 객체 생성
      */
     public static S3DeleteFile create(String filePath, String fileUid) {
-        S3DeleteFile queue = new S3DeleteFile();
-        queue.filePath = filePath;
-        queue.fileUid = fileUid;
-        queue.createdDateTime = LocalDateTime.now();
-        return queue;
+        S3DeleteFile s3DeleteFile = new S3DeleteFile();
+        s3DeleteFile.filePath = filePath;
+        s3DeleteFile.fileUid = fileUid;
+        s3DeleteFile.createdDateTime = LocalDateTime.now();
+        return s3DeleteFile;
     }
 }

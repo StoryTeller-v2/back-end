@@ -67,6 +67,9 @@ dependencies {
 	// Micrometer Prometheus 구현체
 	implementation 'io.micrometer:micrometer-registry-prometheus'
 
+	// BATCH
+	implementation 'org.springframework.batch:spring-batch-core'
+
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'

@@ -3,21 +3,18 @@ package com.cojac.storyteller.common.amazon;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.*;
-import com.cojac.storyteller.common.amazon.eventHandler.UploadS3Event;
+import com.cojac.storyteller.common.amazon.dto.S3DeleteFileDTO;
+import com.cojac.storyteller.common.amazon.util.PartitionUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Component
@@ -27,7 +24,8 @@ public class AmazonS3Service {
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
     private final AmazonS3Client amazonS3Client;
-    private final ApplicationEventPublisher eventPublisher;
+
+    private static final int CHUNK_SIZE = 1000;  // 한 번에 삭제할 최대 객체 수
 
     /**
      * MultipartFile -> S3 업로드
@@ -49,7 +47,6 @@ public class AmazonS3Service {
         String uploadImageUrl = putS3(uploadFile, fileName);
         removeNewFile(uploadFile);
 
-        eventPublisher.publishEvent(new UploadS3Event(uploadImageUrl, fileName));
         return uploadImageUrl;
     }
 
@@ -71,7 +68,7 @@ public class AmazonS3Service {
      */
     public void deleteS3(String filePath) {
         try{
-            String key = filePath.substring(filePath.indexOf(bucket) + bucket.length() + 1);
+            String key = extractKeyFromFilePath(filePath);
 
             try {
                 amazonS3Client.deleteObject(bucket, key);
@@ -84,6 +81,27 @@ public class AmazonS3Service {
         }
         log.debug("[S3Uploader] : S3에 있는 파일 삭제");
     }
+
+    /**
+     * S3에 있는 파일 다중 삭제
+     * ChunkSize 최대 1000
+     */
+    public void deleteFilesS3(List<S3DeleteFileDTO> fileDTOS) {
+        Collection<List<S3DeleteFileDTO>> chunkedDTOs = PartitionUtils.chunking(fileDTOS, CHUNK_SIZE);
+
+        for (List<S3DeleteFileDTO> chunkedUnit : chunkedDTOs) {
+            // S3 키 추출
+            String[] deleteFilePaths = chunkedUnit.stream()
+                    .map(dto -> {
+                        return extractKeyFromFilePath(dto.getFilePath());
+                    })
+                    .toArray(String[]::new);
+
+            // AWS S3에서 객체 삭제
+            amazonS3Client.deleteObjects(new DeleteObjectsRequest(bucket).withKeys(deleteFilePaths));
+        }
+    }
+
 
     /**
      * S3에서 특정 경로에 있는 사진 목록 가져오기
@@ -110,6 +128,44 @@ public class AmazonS3Service {
         } while (result.isTruncated());
 
         return photoUrls;
+    }
+
+    /**
+     * 이미지를 바이트 배열로 받아서 S3에 업로드
+     * @param imageBytes 이미지의 바이트 배열
+     * @return 업로드된 이미지의 URL
+     */
+    public String uploadImageToS3(byte[] imageBytes, String dirPath) throws IOException {
+        String fileName = UUID.randomUUID() + ".png"; // 파일 이름
+
+        // 디렉토리가 존재하지 않으면 생성
+        File dir = new File(dirPath);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+
+        File file = new File(dirPath + "/" + fileName);
+
+        // 이미지 바이트 배열을 파일로 저장
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(imageBytes);
+        }
+
+        // 파일을 S3로 업로드
+        String uploadImageUrl = putS3(file, "books/photos/" + fileName);
+
+        // 로컬 파일 삭제
+        removeNewFile(file);
+        return uploadImageUrl;
+    }
+
+    /**
+     * S3 경로에서 키값 추출
+     * @param filePath S3 경로
+     * @return 키
+     */
+    private String extractKeyFromFilePath(String filePath) {
+        return filePath.substring(filePath.indexOf(bucket) + bucket.length() + 1);
     }
 
 
@@ -142,34 +198,5 @@ public class AmazonS3Service {
         }
 
         return Optional.empty();
-    }
-
-    /**
-     * 이미지를 바이트 배열로 받아서 S3에 업로드
-     * @param imageBytes 이미지의 바이트 배열
-     * @return 업로드된 이미지의 URL
-     */
-    public String uploadImageToS3(byte[] imageBytes, String dirPath) throws IOException {
-        String fileName = UUID.randomUUID() + ".png"; // 파일 이름
-
-        // 디렉토리가 존재하지 않으면 생성
-        File dir = new File(dirPath);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-
-        File file = new File(dirPath + "/" + fileName);
-
-        // 이미지 바이트 배열을 파일로 저장
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            fos.write(imageBytes);
-        }
-
-        // 파일을 S3로 업로드
-        String uploadImageUrl = putS3(file, "books/photos/" + fileName);
-
-        // 로컬 파일 삭제
-        removeNewFile(file);
-        return uploadImageUrl;
     }
 }

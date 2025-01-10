@@ -1,33 +1,35 @@
 package com.cojac.storyteller.book.service;
 
-import com.cojac.storyteller.book.entity.BookEntity;
-import com.cojac.storyteller.book.exception.BookNotFoundException;
-import com.cojac.storyteller.book.repository.BookRepository;
-import com.cojac.storyteller.book.repository.batch.BatchBookDelete;
-import com.cojac.storyteller.response.code.ErrorCode;
-import com.cojac.storyteller.page.entity.PageEntity;
-import com.cojac.storyteller.profile.entity.ProfileEntity;
-import com.cojac.storyteller.setting.entity.SettingEntity;
 import com.cojac.storyteller.book.dto.BookDTO;
 import com.cojac.storyteller.book.dto.BookDetailResponseDTO;
 import com.cojac.storyteller.book.dto.BookListResponseDTO;
 import com.cojac.storyteller.book.dto.QuizResponseDTO;
-import com.cojac.storyteller.page.dto.PageDTO;
-import com.cojac.storyteller.profile.exception.ProfileNotFoundException;
-import com.cojac.storyteller.page.repository.batch.BatchPageInsert;
-import com.cojac.storyteller.profile.repository.ProfileRepository;
+import com.cojac.storyteller.book.entity.BookEntity;
+import com.cojac.storyteller.book.exception.BookNotFoundException;
+import com.cojac.storyteller.book.mapper.BookMapper;
+import com.cojac.storyteller.book.repository.BookRepository;
+import com.cojac.storyteller.book.repository.batch.BatchBookDelete;
 import com.cojac.storyteller.common.amazon.AmazonS3Service;
+import com.cojac.storyteller.common.amazon.eventHandler.UploadS3Event;
 import com.cojac.storyteller.common.openAI.ImageGenerationService;
 import com.cojac.storyteller.common.openAI.OpenAIService;
-import com.cojac.storyteller.book.mapper.BookMapper;
+import com.cojac.storyteller.page.dto.PageDTO;
+import com.cojac.storyteller.page.entity.PageEntity;
+import com.cojac.storyteller.page.repository.batch.BatchPageInsert;
+import com.cojac.storyteller.profile.entity.ProfileEntity;
+import com.cojac.storyteller.profile.exception.ProfileNotFoundException;
+import com.cojac.storyteller.profile.repository.ProfileRepository;
+import com.cojac.storyteller.response.code.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.time.LocalDate;
 import java.time.Period;
@@ -47,12 +49,14 @@ public class BookService {
     private final BatchPageInsert batchPageInsert;
     private final BatchBookDelete batchBookDelete;
     private final AmazonS3Service amazonS3Service;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 동화 생성
      */
     @Transactional
     public BookDTO createBook(String prompt, Integer profileId) {
+
         // 프로필 확인
         ProfileEntity profile = profileRepository.findById(profileId)
                 .orElseThrow(() -> new ProfileNotFoundException(ErrorCode.PROFILE_NOT_FOUND));
@@ -67,6 +71,7 @@ public class BookService {
 
         // 책 표지 이미지 생성 및 S3에 업로드
         String coverImageUrl = imageGenerationService.generateAndUploadBookCoverImage(title);
+        eventPublisher.publishEvent(new UploadS3Event(coverImageUrl));
 
         // 책 및 페이지 엔티티 생성
         BookEntity book = BookMapper.createBookEntity(title, coverImageUrl, profile);
@@ -88,6 +93,7 @@ public class BookService {
             String trimContent = contentParts[i].trim();
 
             String imageUrl = imageGenerationService.generateAndUploadPageImage(trimContent);
+            eventPublisher.publishEvent(new UploadS3Event(imageUrl));
 
             PageEntity pageEntity = PageEntity.builder()
                     .pageNumber(i + 1)

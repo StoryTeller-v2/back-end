@@ -1,4 +1,4 @@
-package com.cojac.storyteller.common.mail.config;
+package com.cojac.storyteller.common.async;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
