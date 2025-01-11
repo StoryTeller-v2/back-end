@@ -85,6 +85,11 @@ public class BookService {
         return BookMapper.mapToBookDTO(savedBook, pages);
     }
 
+    /**
+     * 페이지 관련 작업
+     * 페이지 이미지 생성 및 S3 업로드
+     * 페이지 엔티티 생성
+     */
     private List<PageEntity> createPage(BookEntity book, String content) {
         String[] contentParts = content.split("\n\n");
         List<PageEntity> pages = new ArrayList<>();
