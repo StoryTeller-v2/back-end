@@ -1,4 +1,4 @@
-package com.cojac.storyteller.common.config;
+package com.cojac.storyteller.common.util;
 
 import com.cojac.storyteller.user.repository.LocalUserRepository;
 import com.cojac.storyteller.user.repository.SocialUserRepository;

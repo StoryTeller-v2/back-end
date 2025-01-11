@@ -1,4 +1,4 @@
-package com.cojac.storyteller.common.config;
+package com.cojac.storyteller.common.util;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
