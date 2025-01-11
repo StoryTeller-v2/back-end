@@ -16,4 +16,8 @@ public class EmailDTO {
     @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "값은 알파벳과 숫자만 포함해야 합니다")
     private String authCode;
     private boolean authResult;
+
+    public EmailDTO(String email) {
+        this.email = email;
+    }
 }

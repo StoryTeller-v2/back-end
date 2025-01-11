@@ -304,7 +304,7 @@ public class UserServiceUnitTest {
         userService.sendCodeToEmail(email);
 
         // then
-        verify(mailService).sendEmail(any(), any(), any());
+        verify(mailService).sendEmailWithAsync(any(), any(), any());
     }
 
     @Test

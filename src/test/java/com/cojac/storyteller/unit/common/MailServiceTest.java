@@ -46,14 +46,14 @@ class MailServiceTest {
 
     @Test
     @DisplayName("이메일 전송 성공")
-    void testSendEmail_Success() {
+    void testSendEmail_WithAsync_Success() {
         // given
         String toEmail = "test@example.com";
         String title = "Test Title";
         String text = "Test Email Content";
 
         // when
-        mailService.sendEmail(toEmail, title, text);
+        mailService.sendEmailWithAsync(toEmail, title, text);
 
         // then
         SimpleMailMessage expectedMessage = new SimpleMailMessage();
@@ -66,7 +66,7 @@ class MailServiceTest {
 
     @Test
     @DisplayName("이메일 전송 실패 시 예외 발생")
-    void testSendEmail_Failure() {
+    void testSendEmail_WithAsync_Failure() {
         // given
         String toEmail = "test@example.com";
         String title = "Test Title";
@@ -75,6 +75,6 @@ class MailServiceTest {
         doThrow(new RuntimeException("Email sending failed")).when(emailSender).send(any(SimpleMailMessage.class));
 
         // when & then
-        assertThrows(EmailSendingException.class, () -> mailService.sendEmail(toEmail, title, text));
+        assertThrows(EmailSendingException.class, () -> mailService.sendEmailWithAsync(toEmail, title, text));
     }
 }
